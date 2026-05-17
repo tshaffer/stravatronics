@@ -119,6 +119,41 @@ export async function fetchActivityStreams(stravaId: number): Promise<ActivitySt
   return res.json() as Promise<ActivityStreams>;
 }
 
+export interface LeaderboardEffort {
+  stravaId: number;
+  activityStravaId: number;
+  elapsedTime: number;
+  movingTime: number;
+  startDate: string;
+  startDateLocal: string;
+  distance: number;
+  averageWatts?: number;
+  averageHeartrate?: number;
+  prRank?: number;
+  komRank?: number;
+}
+
+export interface SegmentLeaderboard {
+  segment: {
+    stravaId: number;
+    name: string;
+    distance: number | null;
+    averageGrade: number | null;
+  };
+  summary: {
+    totalEfforts: number;
+    prTime: number | null;
+    avgTime: number | null;
+  };
+  efforts: LeaderboardEffort[];
+}
+
+export async function fetchSegmentLeaderboard(segmentId: number): Promise<SegmentLeaderboard> {
+  const res = await fetch(`/api/segments/${segmentId}/efforts`);
+  if (!res.ok) throw new Error('Failed to fetch segment leaderboard');
+  return res.json() as Promise<SegmentLeaderboard>;
+}
+
 export async function syncActivities(): Promise<{ synced: number }> {
   const res = await fetch('/api/activities/sync', { method: 'POST' });
   if (!res.ok) throw new Error('Sync failed');

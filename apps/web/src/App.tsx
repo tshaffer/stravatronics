@@ -21,6 +21,7 @@ import Chip from '@mui/material/Chip';
 import type { Athlete, Activity } from './api/stravatronicsApi';
 import { fetchAthlete, fetchActivities, syncActivities } from './api/stravatronicsApi';
 import { ActivityDetailPage } from './components/ActivityDetailPage';
+import { SegmentLeaderboardPage } from './components/SegmentLeaderboardPage';
 
 interface AuthStatus {
   authenticated: boolean;
@@ -273,15 +274,10 @@ function HomePage(): ReactElement {
   );
 }
 
-function ActivityDetailWrapper(): ReactElement {
+function ImperialWrapper({ children }: { children: (imperial: boolean) => ReactElement }): ReactElement {
   const [athlete, setAthlete] = useState<Athlete | null>(null);
-
-  useEffect(() => {
-    fetchAthlete().then(setAthlete).catch(() => undefined);
-  }, []);
-
-  const imperial = athlete ? athlete.measurementPreference !== 'meters' : true;
-  return <ActivityDetailPage imperial={imperial} />;
+  useEffect(() => { fetchAthlete().then(setAthlete).catch(() => undefined); }, []);
+  return children(athlete ? athlete.measurementPreference !== 'meters' : true);
 }
 
 export function App(): ReactElement {
@@ -295,7 +291,12 @@ export function App(): ReactElement {
       </AppBar>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/activities/:stravaId" element={<ActivityDetailWrapper />} />
+        <Route path="/activities/:stravaId" element={
+          <ImperialWrapper>{(imperial) => <ActivityDetailPage imperial={imperial} />}</ImperialWrapper>
+        } />
+        <Route path="/segments/:segmentId" element={
+          <ImperialWrapper>{(imperial) => <SegmentLeaderboardPage imperial={imperial} />}</ImperialWrapper>
+        } />
       </Routes>
     </>
   );

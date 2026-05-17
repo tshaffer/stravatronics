@@ -213,6 +213,7 @@ interface SegmentEffortsTableProps {
 }
 
 function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTableProps): ReactElement {
+  const navigate = useNavigate();
   const hasWatts = efforts.some((e) => e.averageWatts != null);
   const hasHR = efforts.some((e) => e.averageHeartrate != null);
 
@@ -256,10 +257,16 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
                       <AchievementBadge effort={e} />
                     </TableCell>
                     <TableCell>
-                      <Box>
-                        {e.segment.name}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: 'primary.main' } }}
+                          onClick={(ev) => { ev.stopPropagation(); navigate(`/segments/${e.segment.stravaId}`); }}
+                        >
+                          {e.segment.name}
+                        </Typography>
                         {cat && (
-                          <Chip label={cat} size="small" sx={{ ml: 1, height: 16, fontSize: 10 }} />
+                          <Chip label={cat} size="small" sx={{ height: 16, fontSize: 10 }} />
                         )}
                       </Box>
                     </TableCell>
