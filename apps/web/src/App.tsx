@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { Routes, Route, useSearchParams } from 'react-router-dom';
+import { Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
 import CssBaseline from '@mui/material/CssBaseline';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -17,6 +17,7 @@ import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
 import type { Athlete, Activity } from './api/stravatronicsApi';
 import { fetchAthlete, fetchActivities, syncActivities } from './api/stravatronicsApi';
+import { ActivityDetailPage } from './components/ActivityDetailPage';
 
 interface AuthStatus {
   authenticated: boolean;
@@ -62,6 +63,7 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const imperial = athlete.measurementPreference !== 'meters';
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchActivities()
@@ -125,7 +127,12 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
             </TableHead>
             <TableBody>
               {activities.map((a) => (
-                <TableRow key={a.stravaId} hover>
+                <TableRow
+                  key={a.stravaId}
+                  hover
+                  onClick={() => navigate(`/activities/${a.stravaId}`)}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     {new Date(a.startDateLocal).toLocaleDateString()}
                   </TableCell>
@@ -203,6 +210,17 @@ function HomePage(): ReactElement {
   );
 }
 
+function ActivityDetailWrapper(): ReactElement {
+  const [athlete, setAthlete] = useState<Athlete | null>(null);
+
+  useEffect(() => {
+    fetchAthlete().then(setAthlete).catch(() => undefined);
+  }, []);
+
+  const imperial = athlete ? athlete.measurementPreference !== 'meters' : true;
+  return <ActivityDetailPage imperial={imperial} />;
+}
+
 export function App(): ReactElement {
   return (
     <>
@@ -214,6 +232,7 @@ export function App(): ReactElement {
       </AppBar>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/activities/:stravaId" element={<ActivityDetailWrapper />} />
       </Routes>
     </>
   );

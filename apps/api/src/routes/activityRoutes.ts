@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { fetchStravaActivities } from '../strava/activitiesApi.js';
-import { upsertActivities, getActivities, getLatestActivityDate } from '../repositories/activityRepository.js';
+import { upsertActivities, getActivities, getActivity, getLatestActivityDate } from '../repositories/activityRepository.js';
 
 export const activityRouter: RouterType = Router();
 
@@ -45,6 +45,20 @@ function mapActivity(a: Awaited<ReturnType<typeof fetchStravaActivities>>[number
     elevLow: a.elev_low ?? null
   };
 }
+
+activityRouter.get('/:id', async (req: Request, res: Response) => {
+  const stravaId = Number(req.params['id']);
+  if (isNaN(stravaId)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+  const activity = await getActivity(stravaId);
+  if (!activity) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  res.json(activity);
+});
 
 activityRouter.post('/sync', async (_req: Request, res: Response) => {
   const afterEpoch = await getLatestActivityDate();

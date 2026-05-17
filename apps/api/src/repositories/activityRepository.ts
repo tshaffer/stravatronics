@@ -54,6 +54,10 @@ export async function getActivities(): Promise<ActivityDoc[]> {
   return ActivityModel.find().sort({ startDate: -1 }).lean();
 }
 
+export async function getActivity(stravaId: number): Promise<ActivityDoc | null> {
+  return ActivityModel.findOne({ stravaId }).lean();
+}
+
 export async function getLatestActivityDate(): Promise<number> {
   const latest = await ActivityModel.findOne().sort({ startDate: -1 }).lean();
   if (!latest?.startDate) return 0;
