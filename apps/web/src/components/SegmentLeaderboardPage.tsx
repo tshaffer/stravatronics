@@ -13,6 +13,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, CartesianGrid
@@ -145,6 +146,8 @@ export function SegmentLeaderboardPage({ imperial }: SegmentLeaderboardPageProps
   const [data, setData] = useState<SegmentLeaderboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<'time' | 'date'>('time');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (!segmentId) return;
@@ -161,6 +164,21 @@ export function SegmentLeaderboardPage({ imperial }: SegmentLeaderboardPageProps
   const hasWatts = efforts.some((e) => e.averageWatts != null);
   const hasHR = efforts.some((e) => e.averageHeartrate != null);
   const prTime = summary.prTime;
+
+  function handleSort(key: 'time' | 'date'): void {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'time' ? 'asc' : 'desc');
+    }
+  }
+
+  const sortedEfforts = [...efforts].sort((a, b) => {
+    const mul = sortDir === 'asc' ? 1 : -1;
+    if (sortKey === 'date') return mul * a.startDate.localeCompare(b.startDate);
+    return mul * ((a.elapsedTime ?? 0) - (b.elapsedTime ?? 0));
+  });
 
   return (
     <Box sx={{ p: 3, maxWidth: 960, mx: 'auto' }}>
@@ -191,24 +209,38 @@ export function SegmentLeaderboardPage({ imperial }: SegmentLeaderboardPageProps
 
       {/* Leaderboard table */}
       <Divider sx={{ my: 2 }} />
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        ALL EFFORTS — BEST TO WORST
-      </Typography>
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>ALL EFFORTS</Typography>
       <Paper variant="outlined" sx={{ overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell align="center" sx={{ width: 48 }}>#</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell align="right">Time</TableCell>
+              <TableCell sortDirection={sortKey === 'date' ? sortDir : false}>
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortDir : 'asc'}
+                  onClick={() => handleSort('date')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right" sortDirection={sortKey === 'time' ? sortDir : false}>
+                <TableSortLabel
+                  active={sortKey === 'time'}
+                  direction={sortKey === 'time' ? sortDir : 'asc'}
+                  onClick={() => handleSort('time')}
+                >
+                  Time
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="right">Speed</TableCell>
               {hasWatts && <TableCell align="right">Avg W</TableCell>}
               {hasHR && <TableCell align="right">Avg HR</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
-            {efforts.map((e, i) => {
-              const isPR = e.elapsedTime === prTime && i === 0;
+            {sortedEfforts.map((e, i) => {
+              const isPR = e.elapsedTime === prTime;
               return (
                 <TableRow
                   key={e.stravaId}

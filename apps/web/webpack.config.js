@@ -28,12 +28,20 @@ module.exports = {
     })
   ],
   devtool: 'source-map',
+  watchOptions: {
+    ignored: /node_modules/
+  },
   devServer: {
     port: 3000,
     hot: true,
     historyApiFallback: true,
     static: {
       directory: path.resolve(__dirname, 'dist')
+    },
+    watchFiles: {
+      options: {
+        ignored: /node_modules/
+      }
     },
     proxy: [
       {
