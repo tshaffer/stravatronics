@@ -10,8 +10,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
+import TableFooter from '@mui/material/TableFooter';
 import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import Paper from '@mui/material/Paper';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
@@ -57,11 +60,29 @@ function AthleteCard({ athlete }: { athlete: Athlete }): ReactElement {
   );
 }
 
+type SortKey = 'startDateLocal' | 'name' | 'distance' | 'movingTime' | 'totalElevationGain' | 'averageHeartrate' | 'weightedAverageWatts';
+
+function sortActivities(activities: Activity[], key: SortKey, dir: 'asc' | 'desc'): Activity[] {
+  return [...activities].sort((a, b) => {
+    const nullSentinel = dir === 'asc' ? Infinity : -Infinity;
+    const aVal = (a[key] ?? nullSentinel) as string | number;
+    const bVal = (b[key] ?? nullSentinel) as string | number;
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      return dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    return dir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+  });
+}
+
 function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('startDateLocal');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const imperial = athlete.measurementPreference !== 'meters';
   const navigate = useNavigate();
 
@@ -70,6 +91,16 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
       .then(setActivities)
       .finally(() => setLoading(false));
   }, []);
+
+  function handleSort(key: SortKey): void {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'startDateLocal' ? 'desc' : 'asc');
+    }
+    setPage(0);
+  }
 
   async function handleSync(): Promise<void> {
     setSyncing(true);
@@ -84,6 +115,23 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
     } finally {
       setSyncing(false);
     }
+  }
+
+  const sorted = sortActivities(activities, sortKey, sortDir);
+  const pageRows = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  function SortCell({ label, colKey, align = 'left' }: { label: string; colKey: SortKey; align?: 'left' | 'right' }): ReactElement {
+    return (
+      <TableCell align={align} sortDirection={sortKey === colKey ? sortDir : false}>
+        <TableSortLabel
+          active={sortKey === colKey}
+          direction={sortKey === colKey ? sortDir : 'asc'}
+          onClick={() => handleSort(colKey)}
+        >
+          {label}
+        </TableSortLabel>
+      </TableCell>
+    );
   }
 
   return (
@@ -115,18 +163,18 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Name</TableCell>
+                <SortCell label="Date" colKey="startDateLocal" />
+                <SortCell label="Name" colKey="name" />
                 <TableCell>Type</TableCell>
-                <TableCell align="right">Distance</TableCell>
-                <TableCell align="right">Moving Time</TableCell>
-                <TableCell align="right">Elevation</TableCell>
-                <TableCell align="right">Avg HR</TableCell>
-                <TableCell align="right">Watts (NP)</TableCell>
+                <SortCell label="Distance" colKey="distance" align="right" />
+                <SortCell label="Moving Time" colKey="movingTime" align="right" />
+                <SortCell label="Elevation" colKey="totalElevationGain" align="right" />
+                <SortCell label="Avg HR" colKey="averageHeartrate" align="right" />
+                <SortCell label="Watts (NP)" colKey="weightedAverageWatts" align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
-              {activities.map((a) => (
+              {pageRows.map((a) => (
                 <TableRow
                   key={a.stravaId}
                   hover
@@ -148,6 +196,21 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
                 </TableRow>
               ))}
             </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TablePagination
+                  rowsPerPageOptions={[10, 25, 50, 100]}
+                  count={activities.length}
+                  rowsPerPage={rowsPerPage}
+                  page={page}
+                  onPageChange={(_e, p) => setPage(p)}
+                  onRowsPerPageChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setPage(0);
+                  }}
+                />
+              </TableRow>
+            </TableFooter>
           </Table>
         </Paper>
       )}
