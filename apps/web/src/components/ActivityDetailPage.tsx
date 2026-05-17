@@ -10,8 +10,15 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
-import type { Activity } from '../api/stravatronicsApi';
-import { fetchActivity } from '../api/stravatronicsApi';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import type { Activity, SegmentEffort } from '../api/stravatronicsApi';
+import { fetchActivity, fetchSegmentEfforts } from '../api/stravatronicsApi';
 
 // Fix Leaflet default marker icon paths when bundled with webpack
 L.Icon.Default.imagePath = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
@@ -71,6 +78,116 @@ function FitBounds({ positions }: { positions: [number, number][] }): null {
   return null;
 }
 
+const CLIMB_CATEGORIES: Record<number, string> = {
+  1: 'Cat 4', 2: 'Cat 3', 3: 'Cat 2', 4: 'Cat 1', 5: 'HC'
+};
+
+function AchievementBadge({ effort }: { effort: SegmentEffort }): ReactElement | null {
+  if (effort.komRank === 1) {
+    return <EmojiEventsIcon fontSize="small" sx={{ color: '#6a0dad' }} titleAccess="KOM" />;
+  }
+  if (effort.prRank === 1) {
+    return <EmojiEventsIcon fontSize="small" sx={{ color: '#d4af37' }} titleAccess="PR" />;
+  }
+  if (effort.prRank != null && effort.prRank <= 3) {
+    return <EmojiEventsIcon fontSize="small" sx={{ color: '#cd7f32' }} titleAccess={`Top ${effort.prRank}`} />;
+  }
+  return null;
+}
+
+interface SegmentEffortsTableProps {
+  efforts: SegmentEffort[];
+  imperial: boolean;
+  loading: boolean;
+}
+
+function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTableProps): ReactElement {
+  const hasWatts = efforts.some((e) => e.averageWatts != null);
+  const hasHR = efforts.some((e) => e.averageHeartrate != null);
+
+  return (
+    <>
+      <Divider sx={{ my: 2 }} />
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        SEGMENT EFFORTS {!loading && `(${efforts.length})`}
+      </Typography>
+      {loading ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+          <CircularProgress size={16} />
+          <Typography variant="body2" color="text.secondary">Loading from Strava…</Typography>
+        </Box>
+      ) : efforts.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">No segment efforts recorded.</Typography>
+      ) : (
+        <Paper variant="outlined" sx={{ overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ width: 28, px: 1 }} />
+                <TableCell>Segment</TableCell>
+                <TableCell align="right">Time</TableCell>
+                <TableCell align="right">Distance</TableCell>
+                <TableCell align="right">Avg Speed</TableCell>
+                <TableCell align="right">Grade</TableCell>
+                <TableCell align="right">Elev Δ</TableCell>
+                {hasWatts && <TableCell align="right">Avg W</TableCell>}
+                {hasHR && <TableCell align="right">Avg HR</TableCell>}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {efforts.map((e) => {
+                const speedMps = e.elapsedTime > 0 ? e.distance / e.elapsedTime : 0;
+                const elevDelta = e.segment.elevationHigh - e.segment.elevationLow;
+                const cat = CLIMB_CATEGORIES[e.segment.climbCategory];
+                return (
+                  <TableRow key={e.stravaId} hover>
+                    <TableCell sx={{ px: 1, py: 0.5 }}>
+                      <AchievementBadge effort={e} />
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        {e.segment.name}
+                        {cat && (
+                          <Chip label={cat} size="small" sx={{ ml: 1, height: 16, fontSize: 10 }} />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {formatDuration(e.elapsedTime)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatDistance(e.distance, imperial)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatSpeed(speedMps, imperial)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {e.segment.averageGrade.toFixed(1)}%
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatElevation(elevDelta, imperial)}
+                    </TableCell>
+                    {hasWatts && (
+                      <TableCell align="right">
+                        {e.averageWatts != null ? `${Math.round(e.averageWatts)} W` : '—'}
+                      </TableCell>
+                    )}
+                    {hasHR && (
+                      <TableCell align="right">
+                        {e.averageHeartrate != null ? `${Math.round(e.averageHeartrate)}` : '—'}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
+    </>
+  );
+}
+
 interface ActivityDetailPageProps {
   imperial: boolean;
 }
@@ -81,6 +198,8 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
   const [activity, setActivity] = useState<Activity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [efforts, setEfforts] = useState<SegmentEffort[]>([]);
+  const [effortsLoading, setEffortsLoading] = useState(true);
 
   useEffect(() => {
     if (!stravaId) return;
@@ -88,6 +207,10 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
       .then(setActivity)
       .catch(() => setError('Failed to load activity.'))
       .finally(() => setLoading(false));
+    fetchSegmentEfforts(Number(stravaId))
+      .then(setEfforts)
+      .catch(() => setEfforts([]))
+      .finally(() => setEffortsLoading(false));
   }, [stravaId]);
 
   if (loading) {
@@ -202,6 +325,8 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
         {activity.achievementCount != null && <Stat label="Achievements" value={activity.achievementCount} />}
         <Stat label="PRs" value={activity.prCount} />
       </StatRow>
+
+      <SegmentEffortsTable efforts={efforts} imperial={imperial} loading={effortsLoading} />
     </Box>
   );
 }

@@ -53,3 +53,44 @@ export async function fetchStravaActivities(afterEpoch = 0, page = 1, perPage = 
     page
   });
 }
+
+export interface StravaEmbeddedSegment {
+  id: number;
+  name: string;
+  distance: number;
+  average_grade: number;
+  maximum_grade: number;
+  elevation_high: number;
+  elevation_low: number;
+  climb_category: number;
+}
+
+export interface StravaSegmentEffort {
+  id: number;
+  name: string;
+  elapsed_time: number;
+  moving_time: number;
+  start_date: string;
+  start_date_local: string;
+  distance: number;
+  average_watts?: number;
+  average_heartrate?: number;
+  max_heartrate?: number;
+  average_cadence?: number;
+  pr_rank?: number | null;
+  kom_rank?: number | null;
+  segment: StravaEmbeddedSegment;
+}
+
+export interface StravaDetailedActivity extends StravaSummaryActivity {
+  description?: string;
+  calories?: number;
+  device_name?: string;
+  segment_efforts: StravaSegmentEffort[];
+}
+
+export async function fetchStravaDetailedActivity(id: number): Promise<StravaDetailedActivity> {
+  return stravaGet<StravaDetailedActivity>(`activities/${id}`, {
+    include_all_efforts: 1
+  });
+}

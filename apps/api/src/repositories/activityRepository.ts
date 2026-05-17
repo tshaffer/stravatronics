@@ -32,7 +32,8 @@ const activitySchema = new mongoose.Schema({
   deviceWatts: { type: Boolean },
   averageTemp: { type: Number },
   elevHigh: { type: Number },
-  elevLow: { type: Number }
+  elevLow: { type: Number },
+  effortsFetched: { type: Boolean }
 });
 
 export type ActivityDoc = InferSchemaType<typeof activitySchema>;
@@ -56,6 +57,10 @@ export async function getActivities(): Promise<ActivityDoc[]> {
 
 export async function getActivity(stravaId: number): Promise<ActivityDoc | null> {
   return ActivityModel.findOne({ stravaId }).lean();
+}
+
+export async function markEffortsFetched(stravaId: number): Promise<void> {
+  await ActivityModel.updateOne({ stravaId }, { $set: { effortsFetched: true } });
 }
 
 export async function getLatestActivityDate(): Promise<number> {

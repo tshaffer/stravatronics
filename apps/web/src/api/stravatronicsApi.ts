@@ -62,6 +62,39 @@ export async function fetchActivity(stravaId: number): Promise<Activity> {
   return res.json() as Promise<Activity>;
 }
 
+export interface SegmentSummary {
+  stravaId: number;
+  name: string;
+  distance: number;
+  averageGrade: number;
+  maximumGrade: number;
+  elevationHigh: number;
+  elevationLow: number;
+  climbCategory: number;
+}
+
+export interface SegmentEffort {
+  stravaId: number;
+  activityStravaId: number;
+  name: string;
+  elapsedTime: number;
+  movingTime: number;
+  distance: number;
+  averageWatts?: number;
+  averageHeartrate?: number;
+  maxHeartrate?: number;
+  averageCadence?: number;
+  prRank?: number;
+  komRank?: number;
+  segment: SegmentSummary;
+}
+
+export async function fetchSegmentEfforts(stravaId: number): Promise<SegmentEffort[]> {
+  const res = await fetch(`/api/activities/${stravaId}/efforts`);
+  if (!res.ok) throw new Error('Failed to fetch segment efforts');
+  return res.json() as Promise<SegmentEffort[]>;
+}
+
 export async function syncActivities(): Promise<{ synced: number }> {
   const res = await fetch('/api/activities/sync', { method: 'POST' });
   if (!res.ok) throw new Error('Sync failed');
