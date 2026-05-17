@@ -51,7 +51,7 @@ export async function upsertActivities(activities: ActivityDoc[]): Promise<void>
 }
 
 export async function getActivities(): Promise<ActivityDoc[]> {
-  return ActivityModel.find().sort({ startDate: -1 }).lean();
+  return ActivityModel.find().sort({ startDateLocal: -1, stravaId: -1 }).lean();
 }
 
 export async function getActivity(stravaId: number): Promise<ActivityDoc | null> {
