@@ -95,6 +95,30 @@ export async function fetchSegmentEfforts(stravaId: number): Promise<SegmentEffo
   return res.json() as Promise<SegmentEffort[]>;
 }
 
+export interface StreamChartPoint {
+  distance: number;
+  altitude?: number;
+  watts?: number;
+  heartrate?: number;
+  cadence?: number;
+}
+
+export interface ActivityStreams {
+  normalizedPower: number | null;
+  sampleCount: number;
+  hasAltitude: boolean;
+  hasWatts: boolean;
+  hasHeartrate: boolean;
+  hasCadence: boolean;
+  chart: StreamChartPoint[];
+}
+
+export async function fetchActivityStreams(stravaId: number): Promise<ActivityStreams> {
+  const res = await fetch(`/api/activities/${stravaId}/streams`);
+  if (!res.ok) throw new Error('Failed to fetch streams');
+  return res.json() as Promise<ActivityStreams>;
+}
+
 export async function syncActivities(): Promise<{ synced: number }> {
   const res = await fetch('/api/activities/sync', { method: 'POST' });
   if (!res.ok) throw new Error('Sync failed');

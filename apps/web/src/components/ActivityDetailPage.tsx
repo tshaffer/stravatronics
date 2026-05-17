@@ -17,8 +17,12 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import type { Activity, SegmentEffort } from '../api/stravatronicsApi';
-import { fetchActivity, fetchSegmentEfforts } from '../api/stravatronicsApi';
+import {
+  ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Legend
+} from 'recharts';
+import type { Activity, SegmentEffort, ActivityStreams } from '../api/stravatronicsApi';
+import { fetchActivity, fetchSegmentEfforts, fetchActivityStreams } from '../api/stravatronicsApi';
 
 // Fix Leaflet default marker icon paths when bundled with webpack
 L.Icon.Default.imagePath = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
@@ -76,6 +80,113 @@ function FitBounds({ positions }: { positions: [number, number][] }): null {
     }
   }, [map, positions]);
   return null;
+}
+
+interface ActivityChartProps {
+  streams: ActivityStreams;
+  imperial: boolean;
+}
+
+function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement | null {
+  const { chart, hasAltitude, hasWatts, hasHeartrate } = streams;
+  if (!hasAltitude && !hasWatts && !hasHeartrate) return null;
+
+  const distUnit = imperial ? 'mi' : 'km';
+  const distFactor = imperial ? 1 / 1609.344 : 1 / 1000;
+  const altFactor = imperial ? 3.28084 : 1;
+  const altUnit = imperial ? 'ft' : 'm';
+
+  const data = chart.map((p) => ({
+    dist: +(p.distance * distFactor).toFixed(2),
+    ...(hasAltitude && p.altitude != null ? { altitude: +(p.altitude * altFactor).toFixed(1) } : {}),
+    ...(hasWatts && p.watts != null ? { watts: p.watts } : {}),
+    ...(hasHeartrate && p.heartrate != null ? { heartrate: p.heartrate } : {})
+  }));
+
+  return (
+    <Box sx={{ mt: 3, mb: 1 }}>
+      <Divider sx={{ mb: 2 }} />
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>ACTIVITY CHART</Typography>
+      <ResponsiveContainer width="100%" height={220}>
+        <ComposedChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <XAxis
+            dataKey="dist"
+            type="number"
+            domain={['dataMin', 'dataMax']}
+            tickFormatter={(v: number) => `${v.toFixed(1)} ${distUnit}`}
+            tick={{ fontSize: 11 }}
+          />
+          {hasAltitude && (
+            <YAxis
+              yAxisId="alt"
+              orientation="left"
+              tickFormatter={(v: number) => `${v} ${altUnit}`}
+              tick={{ fontSize: 11 }}
+              width={56}
+            />
+          )}
+          {(hasWatts || hasHeartrate) && (
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={{ fontSize: 11 }}
+              width={40}
+            />
+          )}
+          <Tooltip
+            formatter={(value, name) => {
+              const v = typeof value === 'number' ? value : Number(value);
+              if (name === 'altitude') return [`${v} ${altUnit}`, 'Elevation'];
+              if (name === 'watts') return [`${v} W`, 'Power'];
+              if (name === 'heartrate') return [`${v} bpm`, 'Heart Rate'];
+              return [`${v}`, String(name)];
+            }}
+            labelFormatter={(v) => `${String(v)} ${distUnit}`}
+          />
+          <Legend formatter={(value: string) => {
+            if (value === 'altitude') return `Elevation (${altUnit})`;
+            if (value === 'watts') return 'Power (W)';
+            if (value === 'heartrate') return 'Heart Rate (bpm)';
+            return value;
+          }} />
+          {hasAltitude && (
+            <Area
+              yAxisId="alt"
+              type="monotone"
+              dataKey="altitude"
+              fill="#e0e0e0"
+              stroke="#9e9e9e"
+              strokeWidth={1}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {hasWatts && (
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="watts"
+              stroke="#fc4c02"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {hasHeartrate && (
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="heartrate"
+              stroke="#e53935"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+        </ComposedChart>
+      </ResponsiveContainer>
+    </Box>
+  );
 }
 
 const CLIMB_CATEGORIES: Record<number, string> = {
@@ -200,17 +311,24 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
   const [error, setError] = useState<string | null>(null);
   const [efforts, setEfforts] = useState<SegmentEffort[]>([]);
   const [effortsLoading, setEffortsLoading] = useState(true);
+  const [streams, setStreams] = useState<ActivityStreams | null>(null);
+  const [streamsLoading, setStreamsLoading] = useState(true);
 
   useEffect(() => {
     if (!stravaId) return;
-    fetchActivity(Number(stravaId))
+    const id = Number(stravaId);
+    fetchActivity(id)
       .then(setActivity)
       .catch(() => setError('Failed to load activity.'))
       .finally(() => setLoading(false));
-    fetchSegmentEfforts(Number(stravaId))
+    fetchSegmentEfforts(id)
       .then(setEfforts)
       .catch(() => setEfforts([]))
       .finally(() => setEffortsLoading(false));
+    fetchActivityStreams(id)
+      .then(setStreams)
+      .catch(() => setStreams(null))
+      .finally(() => setStreamsLoading(false));
   }, [stravaId]);
 
   if (loading) {
@@ -262,6 +380,15 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
         </Box>
       )}
 
+      {streamsLoading ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <CircularProgress size={14} />
+          <Typography variant="body2" color="text.secondary">Loading streams…</Typography>
+        </Box>
+      ) : streams && (
+        <ActivityChart streams={streams} imperial={imperial} />
+      )}
+
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>PERFORMANCE</Typography>
       <StatRow>
         <Stat label="Distance" value={formatDistance(activity.distance, imperial)} />
@@ -296,13 +423,16 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
         </>
       )}
 
-      {(activity.averageWatts != null || activity.weightedAverageWatts != null) && (
+      {(activity.averageWatts != null || activity.weightedAverageWatts != null || streams?.normalizedPower != null) && (
         <>
           <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>POWER</Typography>
           <StatRow>
             {activity.averageWatts != null && <Stat label="Avg Watts" value={`${Math.round(activity.averageWatts)} W`} />}
-            {activity.weightedAverageWatts != null && <Stat label="Normalized Power" value={`${Math.round(activity.weightedAverageWatts)} W`} />}
+            {streams?.normalizedPower != null
+              ? <Stat label="Normalized Power" value={`${streams.normalizedPower} W`} />
+              : activity.weightedAverageWatts != null && <Stat label="Normalized Power" value={`${Math.round(activity.weightedAverageWatts)} W`} />
+            }
             {activity.maxWatts != null && <Stat label="Max Watts" value={`${Math.round(activity.maxWatts)} W`} />}
             {activity.kilojoules != null && <Stat label="Energy" value={`${Math.round(activity.kilojoules)} kJ`} />}
           </StatRow>

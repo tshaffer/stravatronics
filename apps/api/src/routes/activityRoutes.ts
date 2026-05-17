@@ -1,7 +1,10 @@
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { fetchStravaActivities, fetchStravaDetailedActivity, type StravaSegmentEffort } from '../strava/activitiesApi.js';
-import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched } from '../repositories/activityRepository.js';
+import { fetchStravaStreams } from '../strava/streamsApi.js';
+import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched } from '../repositories/activityRepository.js';
 import { upsertSegmentEfforts, getSegmentEfforts, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
+import { upsertActivityStreams, getActivityStreams } from '../repositories/activityStreamsRepository.js';
+import { computeNormalizedPower, downsample } from '../utilities/power.js';
 
 export const activityRouter: RouterType = Router();
 
@@ -74,6 +77,69 @@ function mapSegmentEffort(e: StravaSegmentEffort, activityStravaId: number): Seg
     }
   };
 }
+
+const CHART_POINTS = 500;
+
+activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
+  const stravaId = Number(req.params['id']);
+  if (isNaN(stravaId)) { res.status(400).json({ error: 'Invalid id' }); return; }
+
+  const activity = await getActivity(stravaId);
+  if (!activity) { res.status(404).json({ error: 'Not found' }); return; }
+
+  if (!activity.streamsFetched) {
+    const raw = await fetchStravaStreams(stravaId);
+    const latlng = raw.latlng?.data ?? [];
+    const doc = {
+      activityStravaId: stravaId,
+      time: raw.time?.data ?? [],
+      latitudes: latlng.map((p) => p[0]),
+      longitudes: latlng.map((p) => p[1]),
+      altitude: raw.altitude?.data ?? [],
+      distance: raw.distance?.data ?? [],
+      gradeSmooth: raw.grade_smooth?.data ?? [],
+      heartrate: raw.heartrate?.data ?? [],
+      cadence: raw.cadence?.data ?? [],
+      watts: raw.watts?.data ?? [],
+      normalizedPower: raw.watts?.data && raw.time?.data
+        ? computeNormalizedPower(raw.watts.data, raw.time.data) ?? null
+        : null
+    };
+    await upsertActivityStreams(doc);
+    await markStreamsFetched(stravaId);
+  }
+
+  const stored = await getActivityStreams(stravaId);
+  if (!stored) { res.status(404).json({ error: 'Streams not available' }); return; }
+
+  const n = stored.distance.length;
+  const indices = n <= CHART_POINTS
+    ? Array.from({ length: n }, (_, i) => i)
+    : downsample(Array.from({ length: n }, (_, i) => i), CHART_POINTS);
+
+  const hasAlt = stored.altitude.length === n;
+  const hasWatts = stored.watts.length === n;
+  const hasHR = stored.heartrate.length === n;
+  const hasCadence = stored.cadence.length === n;
+
+  const chart = indices.map((i) => ({
+    distance: stored.distance[i] ?? 0,
+    ...(hasAlt ? { altitude: stored.altitude[i] } : {}),
+    ...(hasWatts ? { watts: stored.watts[i] } : {}),
+    ...(hasHR ? { heartrate: stored.heartrate[i] } : {}),
+    ...(hasCadence ? { cadence: stored.cadence[i] } : {})
+  }));
+
+  res.json({
+    normalizedPower: stored.normalizedPower ?? null,
+    sampleCount: n,
+    hasAltitude: hasAlt,
+    hasWatts,
+    hasHeartrate: hasHR,
+    hasCadence,
+    chart
+  });
+});
 
 activityRouter.get('/:id/efforts', async (req: Request, res: Response) => {
   const stravaId = Number(req.params['id']);
