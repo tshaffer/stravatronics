@@ -555,6 +555,7 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
             }
             {activity.maxWatts != null && <Stat label="Max Watts" value={`${Math.round(activity.maxWatts)} W`} />}
             {activity.kilojoules != null && <Stat label="Energy" value={`${Math.round(activity.kilojoules)} kJ`} />}
+            {activity.calories != null && <Stat label="Calories" value={`${Math.round(activity.calories)} kcal`} />}
             {streams?.intensityFactor != null && <Stat label="Intensity Factor" value={streams.intensityFactor.toFixed(3)} />}
             {streams?.trainingStressScore != null && <Stat label="TSS" value={streams.trainingStressScore.toFixed(1)} />}
           </StatRow>

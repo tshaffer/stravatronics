@@ -63,7 +63,7 @@ function AthleteCard({ athlete }: { athlete: Athlete }): ReactElement {
   );
 }
 
-type SortKey = 'startDateLocal' | 'name' | 'sufferScore' | 'distance' | 'movingTime' | 'elapsedTime' | 'totalElevationGain' | 'maxHeartrate' | 'averageHeartrate' | 'weightedAverageWatts';
+type SortKey = 'startDateLocal' | 'name' | 'sufferScore' | 'distance' | 'movingTime' | 'elapsedTime' | 'totalElevationGain' | 'calories' | 'maxHeartrate' | 'averageHeartrate' | 'weightedAverageWatts';
 
 function sortActivities(activities: Activity[], key: SortKey, dir: 'asc' | 'desc'): Activity[] {
   return [...activities].sort((a, b) => {
@@ -180,6 +180,7 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
                 <SortCell label="Name" colKey="name" />
                 <SortCell label="Effort" colKey="sufferScore" align="right" />
                 <SortCell label="Elevation" colKey="totalElevationGain" align="right" />
+                <SortCell label="Calories" colKey="calories" align="right" />
                 <SortCell label="Moving Time" colKey="movingTime" align="right" />
                 <SortCell label="Elapsed Time" colKey="elapsedTime" align="right" />
                 <SortCell label="Distance" colKey="distance" align="right" />
@@ -203,6 +204,7 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
                   <TableCell>{a.name}</TableCell>
                   <TableCell align="right">{a.sufferScore ?? '—'}</TableCell>
                   <TableCell align="right">{formatElevation(a.totalElevationGain, imperial)}</TableCell>
+                  <TableCell align="right">{a.calories != null ? Math.round(a.calories) : '—'}</TableCell>
                   <TableCell align="right">{formatDuration(a.movingTime)}</TableCell>
                   <TableCell align="right">{formatDuration(a.elapsedTime)}</TableCell>
                   <TableCell align="right">{formatDistance(a.distance, imperial)}</TableCell>

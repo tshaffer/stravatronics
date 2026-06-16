@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { fetchStravaActivities, fetchStravaDetailedActivity, type StravaSegmentEffort } from '../strava/activitiesApi.js';
 import { fetchStravaStreams } from '../strava/streamsApi.js';
-import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched, updateSufferScore, resetActivityCache } from '../repositories/activityRepository.js';
+import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched, updateDetailedMetrics, resetActivityCache } from '../repositories/activityRepository.js';
 import { upsertSegmentEfforts, getSegmentEfforts, deleteSegmentEfforts, updateEffortPowerMetrics, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
 import { upsertActivityStreams, getActivityStreams, deleteActivityStreams } from '../repositories/activityStreamsRepository.js';
 import { computeNormalizedPower, computeIntensityFactor, computeTrainingStressScore, computeMmpCurve, downsample } from '../utilities/power.js';
@@ -216,8 +216,11 @@ activityRouter.get('/:id/efforts', async (req: Request, res: Response) => {
     const detailed = await fetchStravaDetailedActivity(stravaId);
     const efforts = detailed.segment_efforts.map((e) => mapSegmentEffort(e, stravaId));
     await upsertSegmentEfforts(efforts);
-    if (detailed.suffer_score != null) {
-      await updateSufferScore(stravaId, detailed.suffer_score);
+    const detailedMetrics: { sufferScore?: number; calories?: number } = {};
+    if (detailed.suffer_score != null) detailedMetrics.sufferScore = detailed.suffer_score;
+    if (detailed.calories != null) detailedMetrics.calories = detailed.calories;
+    if (Object.keys(detailedMetrics).length > 0) {
+      await updateDetailedMetrics(stravaId, detailedMetrics);
     }
     await markEffortsFetched(stravaId);
 

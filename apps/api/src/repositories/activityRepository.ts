@@ -35,7 +35,8 @@ const activitySchema = new mongoose.Schema({
   elevLow: { type: Number },
   effortsFetched: { type: Boolean },
   streamsFetched: { type: Boolean },
-  sufferScore: { type: Number }
+  sufferScore: { type: Number },
+  calories: { type: Number }
 });
 
 export type ActivityDoc = InferSchemaType<typeof activitySchema>;
@@ -69,8 +70,8 @@ export async function markStreamsFetched(stravaId: number): Promise<void> {
   await ActivityModel.updateOne({ stravaId }, { $set: { streamsFetched: true } });
 }
 
-export async function updateSufferScore(stravaId: number, sufferScore: number): Promise<void> {
-  await ActivityModel.updateOne({ stravaId }, { $set: { sufferScore } });
+export async function updateDetailedMetrics(stravaId: number, metrics: { sufferScore?: number; calories?: number }): Promise<void> {
+  await ActivityModel.updateOne({ stravaId }, { $set: metrics });
 }
 
 export async function resetActivityCache(stravaId: number): Promise<void> {

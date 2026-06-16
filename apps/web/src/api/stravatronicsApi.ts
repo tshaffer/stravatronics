@@ -43,6 +43,7 @@ export interface Activity {
   elevHigh?: number;
   elevLow?: number;
   sufferScore?: number;
+  calories?: number;
 }
 
 export async function fetchAthlete(): Promise<Athlete> {
