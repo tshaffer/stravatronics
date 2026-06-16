@@ -32,3 +32,7 @@ export async function upsertActivityStreams(doc: ActivityStreamsDoc): Promise<vo
 export async function getActivityStreams(activityStravaId: number): Promise<ActivityStreamsDoc | null> {
   return ActivityStreamsModel.findOne({ activityStravaId }).lean();
 }
+
+export async function deleteActivityStreams(activityStravaId: number): Promise<void> {
+  await ActivityStreamsModel.deleteOne({ activityStravaId });
+}

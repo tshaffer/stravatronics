@@ -6,6 +6,8 @@ import polylineDecode from '@mapbox/polyline';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -22,7 +24,7 @@ import {
   ResponsiveContainer, Legend
 } from 'recharts';
 import type { Activity, SegmentEffort, ActivityStreams, MmpCurvePoint } from '../api/stravatronicsApi';
-import { fetchActivity, fetchSegmentEfforts, fetchActivityStreams, fetchMmpCurve } from '../api/stravatronicsApi';
+import { fetchActivity, fetchSegmentEfforts, fetchActivityStreams, fetchMmpCurve, refreshActivity } from '../api/stravatronicsApi';
 
 // Fix Leaflet default marker icon paths when bundled with webpack
 L.Icon.Default.imagePath = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
@@ -396,16 +398,22 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
   const [streams, setStreams] = useState<ActivityStreams | null>(null);
   const [streamsLoading, setStreamsLoading] = useState(true);
   const [mmpCurve, setMmpCurve] = useState<MmpCurvePoint[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!stravaId) return;
-    const id = Number(stravaId);
+  function loadAll(id: number): void {
+    setLoading(true);
+    setEffortsLoading(true);
+    setStreamsLoading(true);
     fetchActivity(id)
       .then(setActivity)
       .catch(() => setError('Failed to load activity.'))
       .finally(() => setLoading(false));
     fetchSegmentEfforts(id)
-      .then(setEfforts)
+      .then((efforts) => {
+        setEfforts(efforts);
+        // Re-fetch activity to pick up sufferScore written during effort fetch
+        return fetchActivity(id).then(setActivity).catch(() => undefined);
+      })
       .catch(() => setEfforts([]))
       .finally(() => setEffortsLoading(false));
     fetchActivityStreams(id)
@@ -416,7 +424,24 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
       .then(setMmpCurve)
       .catch(() => setStreams(null))
       .finally(() => setStreamsLoading(false));
+  }
+
+  useEffect(() => {
+    if (!stravaId) return;
+    loadAll(Number(stravaId));
   }, [stravaId]);
+
+  async function handleRefresh(): Promise<void> {
+    if (!stravaId) return;
+    const id = Number(stravaId);
+    setRefreshing(true);
+    try {
+      await refreshActivity(id);
+      loadAll(id);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (loading) {
     return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
@@ -445,13 +470,20 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
         <IconButton onClick={() => navigate(-1)} size="small">
           <ArrowBackIcon />
         </IconButton>
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography variant="h5" fontWeight={700}>{activity.name}</Typography>
           <Typography variant="body2" color="text.secondary">{date}</Typography>
         </Box>
-        <Box sx={{ ml: 1 }}>
-          <Chip label={activity.sportType ?? activity.type} size="small" />
-        </Box>
+        <Chip label={activity.sportType ?? activity.type} size="small" />
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={refreshing ? <CircularProgress size={14} /> : <RefreshIcon />}
+          onClick={() => void handleRefresh()}
+          disabled={refreshing}
+        >
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </Button>
       </Box>
 
       {decodedPositions.length > 0 && (

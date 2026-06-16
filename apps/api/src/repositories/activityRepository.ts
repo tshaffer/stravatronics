@@ -73,6 +73,13 @@ export async function updateSufferScore(stravaId: number, sufferScore: number): 
   await ActivityModel.updateOne({ stravaId }, { $set: { sufferScore } });
 }
 
+export async function resetActivityCache(stravaId: number): Promise<void> {
+  await ActivityModel.updateOne(
+    { stravaId },
+    { $unset: { effortsFetched: 1, streamsFetched: 1, sufferScore: 1 } }
+  );
+}
+
 export async function getLatestActivityDate(): Promise<number> {
   const latest = await ActivityModel.findOne().sort({ startDate: -1 }).lean();
   if (!latest?.startDate) return 0;

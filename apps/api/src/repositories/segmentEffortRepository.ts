@@ -53,6 +53,10 @@ export async function getSegmentEfforts(activityStravaId: number): Promise<Segme
   return SegmentEffortModel.find({ activityStravaId }).sort({ startDate: 1 }).lean();
 }
 
+export async function deleteSegmentEfforts(activityStravaId: number): Promise<void> {
+  await SegmentEffortModel.deleteMany({ activityStravaId });
+}
+
 export async function updateEffortPowerMetrics(
   stravaId: number,
   metrics: { normalizedPower: number; intensityFactor: number; trainingStressScore: number }

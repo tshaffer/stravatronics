@@ -1,9 +1,9 @@
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { fetchStravaActivities, fetchStravaDetailedActivity, type StravaSegmentEffort } from '../strava/activitiesApi.js';
 import { fetchStravaStreams } from '../strava/streamsApi.js';
-import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched, updateSufferScore } from '../repositories/activityRepository.js';
-import { upsertSegmentEfforts, getSegmentEfforts, updateEffortPowerMetrics, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
-import { upsertActivityStreams, getActivityStreams } from '../repositories/activityStreamsRepository.js';
+import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched, updateSufferScore, resetActivityCache } from '../repositories/activityRepository.js';
+import { upsertSegmentEfforts, getSegmentEfforts, deleteSegmentEfforts, updateEffortPowerMetrics, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
+import { upsertActivityStreams, getActivityStreams, deleteActivityStreams } from '../repositories/activityStreamsRepository.js';
 import { computeNormalizedPower, computeIntensityFactor, computeTrainingStressScore, computeMmpCurve, downsample } from '../utilities/power.js';
 import { config } from '../config.js';
 
@@ -243,6 +243,19 @@ activityRouter.get('/:id', async (req: Request, res: Response) => {
     return;
   }
   res.json(activity);
+});
+
+activityRouter.post('/:id/refresh', async (req: Request, res: Response) => {
+  const stravaId = Number(req.params['id']);
+  if (isNaN(stravaId)) { res.status(400).json({ error: 'Invalid id' }); return; }
+
+  await Promise.all([
+    resetActivityCache(stravaId),
+    deleteSegmentEfforts(stravaId),
+    deleteActivityStreams(stravaId)
+  ]);
+
+  res.json({ ok: true });
 });
 
 activityRouter.post('/sync', async (_req: Request, res: Response) => {

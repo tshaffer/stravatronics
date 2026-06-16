@@ -172,6 +172,11 @@ export async function fetchSegmentLeaderboard(segmentId: number): Promise<Segmen
   return res.json() as Promise<SegmentLeaderboard>;
 }
 
+export async function refreshActivity(stravaId: number): Promise<void> {
+  const res = await fetch(`/api/activities/${stravaId}/refresh`, { method: 'POST' });
+  if (!res.ok) throw new Error('Refresh failed');
+}
+
 export async function syncActivities(): Promise<{ synced: number }> {
   const res = await fetch('/api/activities/sync', { method: 'POST' });
   if (!res.ok) throw new Error('Sync failed');
