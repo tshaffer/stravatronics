@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { fetchStravaActivities, fetchStravaDetailedActivity, type StravaSegmentEffort } from '../strava/activitiesApi.js';
 import { fetchStravaStreams } from '../strava/streamsApi.js';
-import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched } from '../repositories/activityRepository.js';
+import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched, updateSufferScore } from '../repositories/activityRepository.js';
 import { upsertSegmentEfforts, getSegmentEfforts, updateEffortPowerMetrics, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
 import { upsertActivityStreams, getActivityStreams } from '../repositories/activityStreamsRepository.js';
 import { computeNormalizedPower, computeIntensityFactor, computeTrainingStressScore, computeMmpCurve, downsample } from '../utilities/power.js';
@@ -216,6 +216,9 @@ activityRouter.get('/:id/efforts', async (req: Request, res: Response) => {
     const detailed = await fetchStravaDetailedActivity(stravaId);
     const efforts = detailed.segment_efforts.map((e) => mapSegmentEffort(e, stravaId));
     await upsertSegmentEfforts(efforts);
+    if (detailed.suffer_score != null) {
+      await updateSufferScore(stravaId, detailed.suffer_score);
+    }
     await markEffortsFetched(stravaId);
 
     // If streams were already fetched, compute per-effort power now

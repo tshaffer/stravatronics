@@ -506,6 +506,7 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
           <StatRow>
             {activity.averageHeartrate != null && <Stat label="Avg HR" value={`${Math.round(activity.averageHeartrate)} bpm`} />}
             {activity.maxHeartrate != null && <Stat label="Max HR" value={`${Math.round(activity.maxHeartrate)} bpm`} />}
+            {activity.sufferScore != null && <Stat label="Relative Effort" value={activity.sufferScore} />}
           </StatRow>
         </>
       )}

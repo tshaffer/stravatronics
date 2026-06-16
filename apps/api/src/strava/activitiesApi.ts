@@ -88,6 +88,7 @@ export interface StravaDetailedActivity extends StravaSummaryActivity {
   description?: string;
   calories?: number;
   device_name?: string;
+  suffer_score?: number | null;
   segment_efforts: StravaSegmentEffort[];
 }
 

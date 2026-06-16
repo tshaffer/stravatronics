@@ -63,7 +63,7 @@ function AthleteCard({ athlete }: { athlete: Athlete }): ReactElement {
   );
 }
 
-type SortKey = 'startDateLocal' | 'name' | 'distance' | 'movingTime' | 'totalElevationGain' | 'averageHeartrate' | 'weightedAverageWatts';
+type SortKey = 'startDateLocal' | 'name' | 'distance' | 'movingTime' | 'elapsedTime' | 'totalElevationGain' | 'maxHeartrate' | 'averageHeartrate' | 'weightedAverageWatts';
 
 function sortActivities(activities: Activity[], key: SortKey, dir: 'asc' | 'desc'): Activity[] {
   return [...activities].sort((a, b) => {
@@ -179,9 +179,11 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
                 <SortCell label="Date" colKey="startDateLocal" />
                 <SortCell label="Name" colKey="name" />
                 <TableCell>Type</TableCell>
-                <SortCell label="Distance" colKey="distance" align="right" />
-                <SortCell label="Moving Time" colKey="movingTime" align="right" />
                 <SortCell label="Elevation" colKey="totalElevationGain" align="right" />
+                <SortCell label="Moving Time" colKey="movingTime" align="right" />
+                <SortCell label="Elapsed Time" colKey="elapsedTime" align="right" />
+                <SortCell label="Distance" colKey="distance" align="right" />
+                <SortCell label="Max HR" colKey="maxHeartrate" align="right" />
                 <SortCell label="Avg HR" colKey="averageHeartrate" align="right" />
                 <SortCell label="Watts (NP)" colKey="weightedAverageWatts" align="right" />
               </TableRow>
@@ -201,9 +203,11 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
                   <TableCell>
                     <Chip label={a.sportType ?? a.type} size="small" />
                   </TableCell>
-                  <TableCell align="right">{formatDistance(a.distance, imperial)}</TableCell>
-                  <TableCell align="right">{formatDuration(a.movingTime)}</TableCell>
                   <TableCell align="right">{formatElevation(a.totalElevationGain, imperial)}</TableCell>
+                  <TableCell align="right">{formatDuration(a.movingTime)}</TableCell>
+                  <TableCell align="right">{formatDuration(a.elapsedTime)}</TableCell>
+                  <TableCell align="right">{formatDistance(a.distance, imperial)}</TableCell>
+                  <TableCell align="right">{a.maxHeartrate ? Math.round(a.maxHeartrate) : '—'}</TableCell>
                   <TableCell align="right">{a.averageHeartrate ? Math.round(a.averageHeartrate) : '—'}</TableCell>
                   <TableCell align="right">{a.weightedAverageWatts ?? '—'}</TableCell>
                 </TableRow>
