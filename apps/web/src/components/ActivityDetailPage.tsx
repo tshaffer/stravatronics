@@ -21,8 +21,8 @@ import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Legend
 } from 'recharts';
-import type { Activity, SegmentEffort, ActivityStreams } from '../api/stravatronicsApi';
-import { fetchActivity, fetchSegmentEfforts, fetchActivityStreams } from '../api/stravatronicsApi';
+import type { Activity, SegmentEffort, ActivityStreams, MmpCurvePoint } from '../api/stravatronicsApi';
+import { fetchActivity, fetchSegmentEfforts, fetchActivityStreams, fetchMmpCurve } from '../api/stravatronicsApi';
 
 // Fix Leaflet default marker icon paths when bundled with webpack
 L.Icon.Default.imagePath = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
@@ -189,6 +189,62 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
   );
 }
 
+function MmpChart({ curve }: { curve: MmpCurvePoint[] }): ReactElement | null {
+  if (curve.length === 0) return null;
+
+  // Downsample to ~200 points for chart performance
+  const step = Math.max(1, Math.floor(curve.length / 200));
+  const data = curve.filter((_, i) => i % step === 0).map((p) => ({
+    dur: p.duration,
+    power: p.power
+  }));
+
+  function fmtDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    return `${Math.floor(seconds / 3600)}h${Math.floor((seconds % 3600) / 60)}m`;
+  }
+
+  return (
+    <Box sx={{ mt: 3, mb: 1 }}>
+      <Divider sx={{ mb: 2 }} />
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>MEAN MAXIMAL POWER</Typography>
+      <ResponsiveContainer width="100%" height={220}>
+        <ComposedChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <XAxis
+            dataKey="dur"
+            type="number"
+            scale="log"
+            domain={['dataMin', 'dataMax']}
+            tickFormatter={fmtDuration}
+            tick={{ fontSize: 11 }}
+          />
+          <YAxis
+            yAxisId="power"
+            orientation="left"
+            tickFormatter={(v: number) => `${v}W`}
+            tick={{ fontSize: 11 }}
+            width={50}
+          />
+          <Tooltip
+            formatter={(v) => [`${String(v)} W`, 'Power']}
+            labelFormatter={(v) => fmtDuration(Number(v))}
+          />
+          <Line
+            yAxisId="power"
+            type="monotone"
+            dataKey="power"
+            stroke="#fc4c02"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </Box>
+  );
+}
+
 const CLIMB_CATEGORIES: Record<number, string> = {
   1: 'Cat 4', 2: 'Cat 3', 3: 'Cat 2', 4: 'Cat 1', 5: 'HC'
 };
@@ -216,6 +272,7 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
   const navigate = useNavigate();
   const hasWatts = efforts.some((e) => e.averageWatts != null);
   const hasHR = efforts.some((e) => e.averageHeartrate != null);
+  const hasNP = efforts.some((e) => e.normalizedPower != null);
 
   return (
     <>
@@ -243,6 +300,9 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
                 <TableCell align="right">Grade</TableCell>
                 <TableCell align="right">Elev Δ</TableCell>
                 {hasWatts && <TableCell align="right">Avg W</TableCell>}
+                {hasNP && <TableCell align="right">NP</TableCell>}
+                {hasNP && <TableCell align="right">IF</TableCell>}
+                {hasNP && <TableCell align="right">TSS</TableCell>}
                 {hasHR && <TableCell align="right">Avg HR</TableCell>}
               </TableRow>
             </TableHead>
@@ -290,6 +350,21 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
                         {e.averageWatts != null ? `${Math.round(e.averageWatts)} W` : '—'}
                       </TableCell>
                     )}
+                    {hasNP && (
+                      <TableCell align="right">
+                        {e.normalizedPower != null ? `${e.normalizedPower} W` : '—'}
+                      </TableCell>
+                    )}
+                    {hasNP && (
+                      <TableCell align="right">
+                        {e.intensityFactor != null ? e.intensityFactor.toFixed(3) : '—'}
+                      </TableCell>
+                    )}
+                    {hasNP && (
+                      <TableCell align="right">
+                        {e.trainingStressScore != null ? e.trainingStressScore.toFixed(1) : '—'}
+                      </TableCell>
+                    )}
                     {hasHR && (
                       <TableCell align="right">
                         {e.averageHeartrate != null ? `${Math.round(e.averageHeartrate)}` : '—'}
@@ -320,6 +395,7 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
   const [effortsLoading, setEffortsLoading] = useState(true);
   const [streams, setStreams] = useState<ActivityStreams | null>(null);
   const [streamsLoading, setStreamsLoading] = useState(true);
+  const [mmpCurve, setMmpCurve] = useState<MmpCurvePoint[]>([]);
 
   useEffect(() => {
     if (!stravaId) return;
@@ -333,7 +409,11 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
       .catch(() => setEfforts([]))
       .finally(() => setEffortsLoading(false));
     fetchActivityStreams(id)
-      .then(setStreams)
+      .then((s) => {
+        setStreams(s);
+        return fetchMmpCurve(id);
+      })
+      .then(setMmpCurve)
       .catch(() => setStreams(null))
       .finally(() => setStreamsLoading(false));
   }, [stravaId]);
@@ -442,7 +522,10 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
             }
             {activity.maxWatts != null && <Stat label="Max Watts" value={`${Math.round(activity.maxWatts)} W`} />}
             {activity.kilojoules != null && <Stat label="Energy" value={`${Math.round(activity.kilojoules)} kJ`} />}
+            {streams?.intensityFactor != null && <Stat label="Intensity Factor" value={streams.intensityFactor.toFixed(3)} />}
+            {streams?.trainingStressScore != null && <Stat label="TSS" value={streams.trainingStressScore.toFixed(1)} />}
           </StatRow>
+          {mmpCurve.length > 0 && <MmpChart curve={mmpCurve} />}
         </>
       )}
 

@@ -11,7 +11,10 @@ const activityStreamsSchema = new mongoose.Schema({
   heartrate: [Number],
   cadence: [Number],
   watts: [Number],
-  normalizedPower: { type: Number }
+  normalizedPower: { type: Number },
+  intensityFactor: { type: Number },
+  trainingStressScore: { type: Number },
+  maxPowerAtDurations: [Number]
 });
 
 export type ActivityStreamsDoc = InferSchemaType<typeof activityStreamsSchema>;

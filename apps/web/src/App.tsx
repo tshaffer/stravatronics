@@ -18,6 +18,8 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 import Paper from '@mui/material/Paper';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import type { Athlete, Activity } from './api/stravatronicsApi';
 import { fetchAthlete, fetchActivities, syncActivities } from './api/stravatronicsApi';
 import { ActivityDetailPage } from './components/ActivityDetailPage';
@@ -84,6 +86,7 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [hideVirtual, setHideVirtual] = useState(false);
   const imperial = athlete.measurementPreference !== 'meters';
   const navigate = useNavigate();
 
@@ -118,7 +121,11 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
     }
   }
 
-  const sorted = sortActivities(activities, sortKey, sortDir);
+  const VIRTUAL_TYPES = new Set(['VirtualRide', 'VirtualRun']);
+  const filtered = hideVirtual
+    ? activities.filter((a) => !VIRTUAL_TYPES.has(a.sportType ?? a.type))
+    : activities;
+  const sorted = sortActivities(filtered, sortKey, sortDir);
   const pageRows = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   function SortCell({ label, colKey, align = 'left' }: { label: string; colKey: SortKey; align?: 'left' | 'right' }): ReactElement {
@@ -140,7 +147,7 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
       <AthleteCard athlete={athlete} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">Activities ({activities.length})</Typography>
+        <Typography variant="h5">Activities ({filtered.length}{filtered.length !== activities.length ? ` / ${activities.length}` : ''})</Typography>
         <Button
           variant="outlined"
           size="small"
@@ -153,6 +160,11 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
         {syncMessage && (
           <Typography variant="body2" color="text.secondary">{syncMessage}</Typography>
         )}
+        <FormControlLabel
+          control={<Switch size="small" checked={hideVirtual} onChange={(e) => { setHideVirtual(e.target.checked); setPage(0); }} />}
+          label={<Typography variant="body2">Hide Zwift / Virtual</Typography>}
+          sx={{ ml: 'auto' }}
+        />
       </Box>
 
       {loading ? (
@@ -201,7 +213,7 @@ function ActivitiesPage({ athlete }: { athlete: Athlete }): ReactElement {
               <TableRow>
                 <TablePagination
                   rowsPerPageOptions={[10, 25, 50, 100]}
-                  count={activities.length}
+                  count={filtered.length}
                   rowsPerPage={rowsPerPage}
                   page={page}
                   onPageChange={(_e, p) => setPage(p)}

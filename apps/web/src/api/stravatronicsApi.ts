@@ -86,6 +86,9 @@ export interface SegmentEffort {
   averageCadence?: number;
   prRank?: number;
   komRank?: number;
+  normalizedPower?: number;
+  intensityFactor?: number;
+  trainingStressScore?: number;
   segment: SegmentSummary;
 }
 
@@ -105,12 +108,26 @@ export interface StreamChartPoint {
 
 export interface ActivityStreams {
   normalizedPower: number | null;
+  intensityFactor: number | null;
+  trainingStressScore: number | null;
   sampleCount: number;
   hasAltitude: boolean;
   hasWatts: boolean;
   hasHeartrate: boolean;
   hasCadence: boolean;
   chart: StreamChartPoint[];
+}
+
+export interface MmpCurvePoint {
+  duration: number;
+  power: number;
+}
+
+export async function fetchMmpCurve(stravaId: number): Promise<MmpCurvePoint[]> {
+  const res = await fetch(`/api/activities/${stravaId}/mmp`);
+  if (!res.ok) throw new Error('MMP data not available');
+  const data = await res.json() as { curve: MmpCurvePoint[] };
+  return data.curve;
 }
 
 export async function fetchActivityStreams(stravaId: number): Promise<ActivityStreams> {

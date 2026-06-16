@@ -28,6 +28,44 @@ export function computeNormalizedPower(watts: number[], time: number[]): number 
   return isFinite(np) ? np : null;
 }
 
+export function computeIntensityFactor(ftp: number, np: number): number {
+  return np / ftp;
+}
+
+export function computeTrainingStressScore(ftp: number, np: number, intensityFactor: number, durationSeconds: number): number {
+  return (durationSeconds * np * intensityFactor) / (ftp * 36);
+}
+
+/**
+ * Mean Maximal Power curve: for each duration d from 5s up to watts.length,
+ * find the highest rolling average power over any window of d seconds.
+ * Returns array where index 0 = 5s, index 1 = 6s, etc.
+ * O(n^2) — acceptable for typical ride lengths.
+ */
+export function computeMmpCurve(watts: number[]): number[] {
+  const n = watts.length;
+  if (n < 5) return [];
+
+  const result: number[] = [];
+
+  for (let d = 5; d <= n; d++) {
+    // Initialize window sum for first window of size d
+    let windowSum = 0;
+    for (let i = 0; i < d; i++) windowSum += watts[i]!;
+    let maxAvg = windowSum / d;
+
+    // Slide window across the rest of the array
+    for (let i = d; i < n; i++) {
+      windowSum += watts[i]! - watts[i - d]!;
+      const avg = windowSum / d;
+      if (avg > maxAvg) maxAvg = avg;
+    }
+    result.push(Math.round(maxAvg));
+  }
+
+  return result;
+}
+
 /** Downsample an array to at most maxPoints elements, taking evenly spaced samples. */
 export function downsample<T>(arr: T[], maxPoints: number): T[] {
   if (arr.length <= maxPoints) return arr;

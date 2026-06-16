@@ -79,6 +79,8 @@ export interface StravaSegmentEffort {
   average_cadence?: number;
   pr_rank?: number | null;
   kom_rank?: number | null;
+  start_index?: number;
+  end_index?: number;
   segment: StravaEmbeddedSegment;
 }
 

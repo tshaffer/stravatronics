@@ -25,6 +25,11 @@ const segmentEffortSchema = new mongoose.Schema({
   averageCadence: { type: Number },
   prRank: { type: Number },
   komRank: { type: Number },
+  startIndex: { type: Number },
+  endIndex: { type: Number },
+  normalizedPower: { type: Number },
+  intensityFactor: { type: Number },
+  trainingStressScore: { type: Number },
   segment: { type: embeddedSegmentSchema, required: true }
 });
 
@@ -46,4 +51,11 @@ export async function upsertSegmentEfforts(efforts: SegmentEffortDoc[]): Promise
 
 export async function getSegmentEfforts(activityStravaId: number): Promise<SegmentEffortDoc[]> {
   return SegmentEffortModel.find({ activityStravaId }).sort({ startDate: 1 }).lean();
+}
+
+export async function updateEffortPowerMetrics(
+  stravaId: number,
+  metrics: { normalizedPower: number; intensityFactor: number; trainingStressScore: number }
+): Promise<void> {
+  await SegmentEffortModel.updateOne({ stravaId }, { $set: metrics });
 }

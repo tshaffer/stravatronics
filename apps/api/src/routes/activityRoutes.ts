@@ -2,9 +2,10 @@ import { Router, type Request, type Response, type Router as RouterType } from '
 import { fetchStravaActivities, fetchStravaDetailedActivity, type StravaSegmentEffort } from '../strava/activitiesApi.js';
 import { fetchStravaStreams } from '../strava/streamsApi.js';
 import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched } from '../repositories/activityRepository.js';
-import { upsertSegmentEfforts, getSegmentEfforts, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
+import { upsertSegmentEfforts, getSegmentEfforts, updateEffortPowerMetrics, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
 import { upsertActivityStreams, getActivityStreams } from '../repositories/activityStreamsRepository.js';
-import { computeNormalizedPower, downsample } from '../utilities/power.js';
+import { computeNormalizedPower, computeIntensityFactor, computeTrainingStressScore, computeMmpCurve, downsample } from '../utilities/power.js';
+import { config } from '../config.js';
 
 export const activityRouter: RouterType = Router();
 
@@ -65,6 +66,8 @@ function mapSegmentEffort(e: StravaSegmentEffort, activityStravaId: number): Seg
     averageCadence: e.average_cadence ?? null,
     prRank: e.pr_rank ?? null,
     komRank: e.kom_rank ?? null,
+    startIndex: e.start_index ?? null,
+    endIndex: e.end_index ?? null,
     segment: {
       stravaId: e.segment.id,
       name: e.segment.name,
@@ -76,6 +79,29 @@ function mapSegmentEffort(e: StravaSegmentEffort, activityStravaId: number): Seg
       climbCategory: e.segment.climb_category
     }
   };
+}
+
+async function computeAndStoreEffortPowerMetrics(activityStravaId: number, watts: number[]): Promise<void> {
+  const ftp = config.ftp;
+  const efforts = await getSegmentEfforts(activityStravaId);
+  for (const effort of efforts) {
+    const si = effort.startIndex;
+    const ei = effort.endIndex;
+    if (si == null || ei == null || ei <= si) continue;
+    const slice = watts.slice(si, ei + 1);
+    if (slice.length < 30) continue;
+    // build a synthetic time array for the slice (1 sample/sec)
+    const time = Array.from({ length: slice.length }, (_, i) => i);
+    const np = computeNormalizedPower(slice, time);
+    if (np == null) continue;
+    const IF = computeIntensityFactor(ftp, np);
+    const tss = computeTrainingStressScore(ftp, np, IF, slice.length);
+    await updateEffortPowerMetrics(effort.stravaId, {
+      normalizedPower: np,
+      intensityFactor: Math.round(IF * 1000) / 1000,
+      trainingStressScore: Math.round(tss * 10) / 10
+    });
+  }
 }
 
 const CHART_POINTS = 500;
@@ -90,9 +116,22 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
   if (!activity.streamsFetched) {
     const raw = await fetchStravaStreams(stravaId);
     const latlng = raw.latlng?.data ?? [];
+    const wattsData = raw.watts?.data ?? [];
+    const timeData = raw.time?.data ?? [];
+    const ftp = config.ftp;
+
+    const np = wattsData.length > 0 && timeData.length > 0
+      ? computeNormalizedPower(wattsData, timeData) ?? null
+      : null;
+    const IF = np != null ? computeIntensityFactor(ftp, np) : null;
+    const tss = np != null && IF != null && timeData.length > 0
+      ? computeTrainingStressScore(ftp, np, IF, timeData[timeData.length - 1]! - timeData[0]!)
+      : null;
+    const mmp = wattsData.length >= 5 ? computeMmpCurve(wattsData) : [];
+
     const doc = {
       activityStravaId: stravaId,
-      time: raw.time?.data ?? [],
+      time: timeData,
       latitudes: latlng.map((p) => p[0]),
       longitudes: latlng.map((p) => p[1]),
       altitude: raw.altitude?.data ?? [],
@@ -100,13 +139,19 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
       gradeSmooth: raw.grade_smooth?.data ?? [],
       heartrate: raw.heartrate?.data ?? [],
       cadence: raw.cadence?.data ?? [],
-      watts: raw.watts?.data ?? [],
-      normalizedPower: raw.watts?.data && raw.time?.data
-        ? computeNormalizedPower(raw.watts.data, raw.time.data) ?? null
-        : null
+      watts: wattsData,
+      normalizedPower: np,
+      intensityFactor: IF != null ? Math.round(IF * 1000) / 1000 : null,
+      trainingStressScore: tss != null ? Math.round(tss * 10) / 10 : null,
+      maxPowerAtDurations: mmp
     };
     await upsertActivityStreams(doc);
     await markStreamsFetched(stravaId);
+
+    // Compute per-segment-effort power metrics now that we have watts
+    if (wattsData.length > 0) {
+      await computeAndStoreEffortPowerMetrics(stravaId, wattsData);
+    }
   }
 
   const stored = await getActivityStreams(stravaId);
@@ -132,6 +177,8 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
 
   res.json({
     normalizedPower: stored.normalizedPower ?? null,
+    intensityFactor: stored.intensityFactor ?? null,
+    trainingStressScore: stored.trainingStressScore ?? null,
     sampleCount: n,
     hasAltitude: hasAlt,
     hasWatts,
@@ -139,6 +186,19 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
     hasCadence,
     chart
   });
+});
+
+activityRouter.get('/:id/mmp', async (req: Request, res: Response) => {
+  const stravaId = Number(req.params['id']);
+  if (isNaN(stravaId)) { res.status(400).json({ error: 'Invalid id' }); return; }
+
+  const stored = await getActivityStreams(stravaId);
+  if (!stored) { res.status(404).json({ error: 'Streams not available — load activity detail first' }); return; }
+
+  const mmp = stored.maxPowerAtDurations ?? [];
+  // Return as {duration, power} pairs starting at 5s
+  const curve = mmp.map((power, i) => ({ duration: i + 5, power }));
+  res.json({ curve });
 });
 
 activityRouter.get('/:id/efforts', async (req: Request, res: Response) => {
@@ -157,6 +217,12 @@ activityRouter.get('/:id/efforts', async (req: Request, res: Response) => {
     const efforts = detailed.segment_efforts.map((e) => mapSegmentEffort(e, stravaId));
     await upsertSegmentEfforts(efforts);
     await markEffortsFetched(stravaId);
+
+    // If streams were already fetched, compute per-effort power now
+    const streams = await getActivityStreams(stravaId);
+    if (streams && streams.watts.length > 0) {
+      await computeAndStoreEffortPowerMetrics(stravaId, streams.watts as number[]);
+    }
   }
   const efforts = await getSegmentEfforts(stravaId);
   res.json(efforts);

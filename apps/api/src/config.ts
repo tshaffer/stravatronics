@@ -10,6 +10,7 @@ export const config = {
   port: Number(process.env['PORT'] ?? 4000),
   webAppUrl: process.env['WEB_APP_URL'] ?? 'http://localhost:3000',
   mongoUri: requireEnv('MONGODB_URI'),
+  ftp: Number(process.env['FTP'] ?? 181),
   strava: {
     clientId: requireEnv('STRAVA_CLIENT_ID'),
     clientSecret: requireEnv('STRAVA_CLIENT_SECRET'),
