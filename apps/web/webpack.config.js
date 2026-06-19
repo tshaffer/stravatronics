@@ -32,7 +32,7 @@ module.exports = {
     ignored: /node_modules/
   },
   devServer: {
-    port: 3000,
+    port: 3010,
     hot: true,
     historyApiFallback: true,
     static: {
@@ -46,7 +46,7 @@ module.exports = {
     proxy: [
       {
         context: ['/api'],
-        target: 'http://localhost:4000'
+        target: 'http://localhost:4010'
       }
     ]
   }

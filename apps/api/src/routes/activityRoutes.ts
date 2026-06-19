@@ -248,6 +248,56 @@ activityRouter.get('/:id', async (req: Request, res: Response) => {
   res.json(activity);
 });
 
+activityRouter.get('/:id/gpx', async (req: Request, res: Response) => {
+  const stravaId = Number(req.params['id']);
+  if (isNaN(stravaId)) { res.status(400).json({ error: 'Invalid id' }); return; }
+
+  const [activity, streams] = await Promise.all([
+    getActivity(stravaId),
+    getActivityStreams(stravaId)
+  ]);
+
+  if (!activity) { res.status(404).json({ error: 'Activity not found' }); return; }
+  if (!streams || streams.latitudes.length === 0) {
+    res.status(404).json({ error: 'Stream data not available — load activity detail first' });
+    return;
+  }
+
+  const { latitudes, longitudes, altitude, time } = streams;
+  const startMs = new Date(activity.startDate as string).getTime();
+  const hasAlt = altitude.length === latitudes.length;
+  const hasTime = time.length === latitudes.length;
+
+  const trackpoints = latitudes.map((lat, i) => {
+    const lon = longitudes[i] ?? 0;
+    const ele = hasAlt ? `\n        <ele>${(altitude[i] ?? 0).toFixed(1)}</ele>` : '';
+    const t = hasTime
+      ? `\n        <time>${new Date(startMs + (time[i] ?? 0) * 1000).toISOString()}</time>`
+      : '';
+    return `      <trkpt lat="${lat.toFixed(7)}" lon="${lon.toFixed(7)}">${ele}${t}\n      </trkpt>`;
+  }).join('\n');
+
+  const name = (activity.name as string).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Stravatronics" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${name}</name>
+    <time>${new Date(activity.startDate as string).toISOString()}</time>
+  </metadata>
+  <trk>
+    <name>${name}</name>
+    <trkseg>
+${trackpoints}
+    </trkseg>
+  </trk>
+</gpx>`;
+
+  const filename = `${name.replace(/[^a-z0-9]+/gi, '_')}_${stravaId}.gpx`;
+  res.setHeader('Content-Type', 'application/gpx+xml');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(gpx);
+});
+
 activityRouter.post('/:id/refresh', async (req: Request, res: Response) => {
   const stravaId = Number(req.params['id']);
   if (isNaN(stravaId)) { res.status(400).json({ error: 'Invalid id' }); return; }

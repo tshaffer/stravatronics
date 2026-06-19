@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import DownloadIcon from '@mui/icons-material/Download';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -475,6 +476,16 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
           <Typography variant="body2" color="text.secondary">{date}</Typography>
         </Box>
         <Chip label={activity.sportType ?? activity.type} size="small" />
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          href={`/api/activities/${activity.stravaId}/gpx`}
+          disabled={!streams}
+          title={streams ? 'Download GPX' : 'Load activity streams first'}
+        >
+          GPX
+        </Button>
         <Button
           size="small"
           variant="outlined"
