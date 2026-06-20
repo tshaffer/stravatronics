@@ -174,6 +174,16 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
               isAnimationActive={false}
             />
           )}
+          {hasAltitude && (
+            <Line
+              yAxisId="alt"
+              dataKey="elevGain"
+              stroke="none"
+              dot={false}
+              isAnimationActive={false}
+              legendType="none"
+            />
+          )}
           {hasWatts && (
             <Line
               yAxisId="right"
