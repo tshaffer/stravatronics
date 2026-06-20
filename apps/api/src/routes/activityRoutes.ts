@@ -4,7 +4,7 @@ import { fetchStravaStreams } from '../strava/streamsApi.js';
 import { upsertActivities, getActivities, getActivity, getLatestActivityDate, markEffortsFetched, markStreamsFetched, updateDetailedMetrics, resetActivityCache } from '../repositories/activityRepository.js';
 import { upsertSegmentEfforts, getSegmentEfforts, deleteSegmentEfforts, updateEffortPowerMetrics, type SegmentEffortDoc } from '../repositories/segmentEffortRepository.js';
 import { upsertActivityStreams, getActivityStreams, deleteActivityStreams } from '../repositories/activityStreamsRepository.js';
-import { computeNormalizedPower, computeIntensityFactor, computeTrainingStressScore, computeMmpCurve, downsample } from '../utilities/power.js';
+import { computeNormalizedPower, computeIntensityFactor, computeTrainingStressScore, computeMmpCurve } from '../utilities/power.js';
 import { config } from '../config.js';
 
 export const activityRouter: RouterType = Router();
@@ -104,8 +104,6 @@ async function computeAndStoreEffortPowerMetrics(activityStravaId: number, watts
   }
 }
 
-const CHART_POINTS = 500;
-
 activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
   const stravaId = Number(req.params['id']);
   if (isNaN(stravaId)) { res.status(400).json({ error: 'Invalid id' }); return; }
@@ -158,16 +156,12 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
   if (!stored) { res.status(404).json({ error: 'Streams not available' }); return; }
 
   const n = stored.distance.length;
-  const indices = n <= CHART_POINTS
-    ? Array.from({ length: n }, (_, i) => i)
-    : downsample(Array.from({ length: n }, (_, i) => i), CHART_POINTS);
-
   const hasAlt = stored.altitude.length === n;
   const hasWatts = stored.watts.length === n;
   const hasHR = stored.heartrate.length === n;
   const hasCadence = stored.cadence.length === n;
 
-  const chart = indices.map((i) => ({
+  const chart = Array.from({ length: n }, (_, i) => ({
     distance: stored.distance[i] ?? 0,
     ...(hasAlt ? { altitude: stored.altitude[i] } : {}),
     ...(hasWatts ? { watts: stored.watts[i] } : {}),
