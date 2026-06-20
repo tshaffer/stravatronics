@@ -99,12 +99,21 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
   const altFactor = imperial ? 3.28084 : 1;
   const altUnit = imperial ? 'ft' : 'm';
 
-  const data = chart.map((p) => ({
-    dist: +(p.distance * distFactor).toFixed(2),
-    ...(hasAltitude && p.altitude != null ? { altitude: +(p.altitude * altFactor).toFixed(1) } : {}),
-    ...(hasWatts && p.watts != null ? { watts: p.watts } : {}),
-    ...(hasHeartrate && p.heartrate != null ? { heartrate: p.heartrate } : {})
-  }));
+  let accumElev = 0;
+  let prevAlt: number | null = null;
+  const data = chart.map((p) => {
+    if (hasAltitude && p.altitude != null) {
+      if (prevAlt != null && p.altitude > prevAlt) accumElev += p.altitude - prevAlt;
+      prevAlt = p.altitude;
+    }
+    return {
+      dist: +(p.distance * distFactor).toFixed(2),
+      ...(hasAltitude && p.altitude != null ? { altitude: +(p.altitude * altFactor).toFixed(1) } : {}),
+      ...(hasAltitude ? { elevGain: Math.round(accumElev * altFactor) } : {}),
+      ...(hasWatts && p.watts != null ? { watts: p.watts } : {}),
+      ...(hasHeartrate && p.heartrate != null ? { heartrate: p.heartrate } : {})
+    };
+  });
 
   return (
     <Box sx={{ mt: 3, mb: 1 }}>
@@ -140,6 +149,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
             formatter={(value, name) => {
               const v = typeof value === 'number' ? value : Number(value);
               if (name === 'altitude') return [`${v} ${altUnit}`, 'Elevation'];
+              if (name === 'elevGain') return [`${v} ${altUnit}`, 'Elev Gain'];
               if (name === 'watts') return [`${v} W`, 'Power'];
               if (name === 'heartrate') return [`${v} bpm`, 'Heart Rate'];
               return [`${v}`, String(name)];
