@@ -114,12 +114,38 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
     }
     return {
       dist: +(p.distance * distFactor).toFixed(2),
+      ...(p.time != null ? { time: p.time } : {}),
       ...(hasAltitude && p.altitude != null ? { altitude: +(p.altitude * altFactor).toFixed(1) } : {}),
       ...(hasAltitude ? { elevGain: Math.round(accumElev * altFactor) } : {}),
       ...(hasWatts && p.watts != null ? { watts: p.watts } : {}),
-      ...(hasHeartrate && p.heartrate != null ? { heartrate: p.heartrate } : {})
+      ...(hasHeartrate && p.heartrate != null ? { heartrate: p.heartrate } : {}),
+      ...(p.grade != null ? { grade: +p.grade.toFixed(1) } : {})
     };
   });
+
+  function fmtTime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function CustomTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }): ReactElement | null {
+    if (!active || !payload?.length) return null;
+    const point = Object.fromEntries(payload.map((p) => [p.name, p.value]));
+    return (
+      <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', p: 1.5, borderRadius: 1, fontSize: 13 }}>
+        {point['time'] != null && <Box><b>Time:</b> {fmtTime(point['time'] as number)}</Box>}
+        {point['dist'] != null && <Box><b>Dist:</b> {(point['dist'] as number).toFixed(2)} {distUnit}</Box>}
+        {point['altitude'] != null && <Box><b>Elevation:</b> {point['altitude']} {altUnit}</Box>}
+        {point['elevGain'] != null && <Box><b>Elev Gain:</b> {point['elevGain']} {altUnit}</Box>}
+        {point['heartrate'] != null && <Box sx={{ color: '#e53935' }}><b>Heart Rate:</b> {point['heartrate']} bpm</Box>}
+        {point['grade'] != null && <Box><b>Grade:</b> {point['grade']}%</Box>}
+        {point['watts'] != null && <Box sx={{ color: '#fc4c02' }}><b>Power:</b> {point['watts']} W</Box>}
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ mt: 3, mb: 1 }}>
@@ -151,23 +177,17 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
               width={40}
             />
           )}
-          <Tooltip
-            formatter={(value, name) => {
-              const v = typeof value === 'number' ? value : Number(value);
-              if (name === 'altitude') return [`${v} ${altUnit}`, 'Elevation'];
-              if (name === 'elevGain') return [`${v} ${altUnit}`, 'Elev Gain'];
-              if (name === 'watts') return [`${v} W`, 'Power'];
-              if (name === 'heartrate') return [`${v} bpm`, 'Heart Rate'];
-              return [`${v}`, String(name)];
-            }}
-            labelFormatter={(v) => `${String(v)} ${distUnit}`}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Legend formatter={(value: string) => {
             if (value === 'altitude') return `Elevation (${altUnit})`;
             if (value === 'watts') return 'Power (W)';
             if (value === 'heartrate') return 'Heart Rate (bpm)';
             return value;
           }} />
+          <YAxis yAxisId="hidden" hide={true} />
+          <Line yAxisId="hidden" dataKey="dist" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
+          <Line yAxisId="hidden" dataKey="time" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
+          <Line yAxisId="hidden" dataKey="grade" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
           {hasAltitude && showElevation && (
             <Area
               yAxisId="alt"

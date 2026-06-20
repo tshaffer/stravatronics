@@ -160,13 +160,17 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
   const hasWatts = stored.watts.length === n;
   const hasHR = stored.heartrate.length === n;
   const hasCadence = stored.cadence.length === n;
+  const hasTime = stored.time.length === n;
+  const hasGrade = stored.gradeSmooth.length === n;
 
   const chart = Array.from({ length: n }, (_, i) => ({
     distance: stored.distance[i] ?? 0,
+    ...(hasTime ? { time: stored.time[i] } : {}),
     ...(hasAlt ? { altitude: stored.altitude[i] } : {}),
     ...(hasWatts ? { watts: stored.watts[i] } : {}),
     ...(hasHR ? { heartrate: stored.heartrate[i] } : {}),
-    ...(hasCadence ? { cadence: stored.cadence[i] } : {})
+    ...(hasCadence ? { cadence: stored.cadence[i] } : {}),
+    ...(hasGrade ? { grade: stored.gradeSmooth[i] } : {})
   }));
 
   res.json({
