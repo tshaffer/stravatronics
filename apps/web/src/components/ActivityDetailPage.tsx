@@ -5,6 +5,8 @@ import L from 'leaflet';
 import polylineDecode from '@mapbox/polyline';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -94,6 +96,10 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
   const { chart, hasAltitude, hasWatts, hasHeartrate } = streams;
   if (!hasAltitude && !hasWatts && !hasHeartrate) return null;
 
+  const [showElevation, setShowElevation] = useState(() => localStorage.getItem('chart.showElevation') !== 'false');
+  const [showHeartrate, setShowHeartrate] = useState(() => localStorage.getItem('chart.showHeartrate') !== 'false');
+  const [showWatts, setShowWatts] = useState(() => localStorage.getItem('chart.showWatts') !== 'false');
+
   const distUnit = imperial ? 'mi' : 'km';
   const distFactor = imperial ? 1 / 1609.344 : 1 / 1000;
   const altFactor = imperial ? 3.28084 : 1;
@@ -128,7 +134,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
             tickFormatter={(v: number) => `${v.toFixed(1)} ${distUnit}`}
             tick={{ fontSize: 11 }}
           />
-          {hasAltitude && (
+          {hasAltitude && showElevation && (
             <YAxis
               yAxisId="alt"
               orientation="left"
@@ -137,7 +143,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
               width={56}
             />
           )}
-          {(hasWatts || hasHeartrate) && (
+          {((hasWatts && showWatts) || (hasHeartrate && showHeartrate)) && (
             <YAxis
               yAxisId="right"
               orientation="right"
@@ -162,7 +168,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
             if (value === 'heartrate') return 'Heart Rate (bpm)';
             return value;
           }} />
-          {hasAltitude && (
+          {hasAltitude && showElevation && (
             <Area
               yAxisId="alt"
               type="monotone"
@@ -174,7 +180,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
               isAnimationActive={false}
             />
           )}
-          {hasAltitude && (
+          {hasAltitude && showElevation && (
             <Line
               yAxisId="alt"
               dataKey="elevGain"
@@ -184,7 +190,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
               legendType="none"
             />
           )}
-          {hasWatts && (
+          {hasWatts && showWatts && (
             <Line
               yAxisId="right"
               type="monotone"
@@ -195,7 +201,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
               isAnimationActive={false}
             />
           )}
-          {hasHeartrate && (
+          {hasHeartrate && showHeartrate && (
             <Line
               yAxisId="right"
               type="monotone"
@@ -208,6 +214,26 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
           )}
         </ComposedChart>
       </ResponsiveContainer>
+      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+        {hasAltitude && (
+          <FormControlLabel
+            control={<Checkbox size="small" checked={showElevation} onChange={(e) => { setShowElevation(e.target.checked); localStorage.setItem('chart.showElevation', String(e.target.checked)); }} sx={{ color: '#9e9e9e', '&.Mui-checked': { color: '#9e9e9e' } }} />}
+            label={<Typography variant="body2">Elevation</Typography>}
+          />
+        )}
+        {hasWatts && (
+          <FormControlLabel
+            control={<Checkbox size="small" checked={showWatts} onChange={(e) => { setShowWatts(e.target.checked); localStorage.setItem('chart.showWatts', String(e.target.checked)); }} sx={{ color: '#fc4c02', '&.Mui-checked': { color: '#fc4c02' } }} />}
+            label={<Typography variant="body2">Power</Typography>}
+          />
+        )}
+        {hasHeartrate && (
+          <FormControlLabel
+            control={<Checkbox size="small" checked={showHeartrate} onChange={(e) => { setShowHeartrate(e.target.checked); localStorage.setItem('chart.showHeartrate', String(e.target.checked)); }} sx={{ color: '#e53935', '&.Mui-checked': { color: '#e53935' } }} />}
+            label={<Typography variant="body2">Heart Rate</Typography>}
+          />
+        )}
+      </Box>
     </Box>
   );
 }
