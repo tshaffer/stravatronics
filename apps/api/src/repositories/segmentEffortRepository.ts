@@ -27,6 +27,7 @@ const segmentEffortSchema = new mongoose.Schema({
   komRank: { type: Number },
   startIndex: { type: Number },
   endIndex: { type: Number },
+  hidden: { type: Boolean },
   normalizedPower: { type: Number },
   intensityFactor: { type: Number },
   trainingStressScore: { type: Number },

@@ -81,6 +81,7 @@ export interface StravaSegmentEffort {
   kom_rank?: number | null;
   start_index?: number;
   end_index?: number;
+  hidden?: boolean;
   segment: StravaEmbeddedSegment;
 }
 

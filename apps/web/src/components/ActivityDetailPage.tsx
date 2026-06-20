@@ -341,10 +341,16 @@ interface SegmentEffortsTableProps {
 
 function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTableProps): ReactElement {
   const navigate = useNavigate();
-  const hasWatts = efforts.some((e) => e.averageWatts != null);
-  const hasHR = efforts.some((e) => e.averageHeartrate != null);
-  const hasMaxHR = efforts.some((e) => e.maxHeartrate != null);
-  const hasNP = efforts.some((e) => e.normalizedPower != null);
+  const [showHidden, setShowHidden] = useState(false);
+
+  const visibleEfforts = efforts.filter((e) => !e.hidden);
+  const hiddenEfforts = efforts.filter((e) => e.hidden);
+  const displayedEfforts = showHidden ? efforts : visibleEfforts;
+
+  const hasWatts = displayedEfforts.some((e) => e.averageWatts != null);
+  const hasHR = displayedEfforts.some((e) => e.averageHeartrate != null);
+  const hasMaxHR = displayedEfforts.some((e) => e.maxHeartrate != null);
+  const hasNP = displayedEfforts.some((e) => e.normalizedPower != null);
 
   return (
     <>
@@ -380,7 +386,7 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
               </TableRow>
             </TableHead>
             <TableBody>
-              {efforts.map((e) => {
+              {displayedEfforts.map((e) => {
                 const speedMps = e.elapsedTime > 0 ? e.distance / e.elapsedTime : 0;
                 const elevDelta = e.segment.elevationHigh - e.segment.elevationLow;
                 const cat = CLIMB_CATEGORIES[e.segment.climbCategory];
@@ -454,6 +460,13 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
             </TableBody>
           </Table>
         </Paper>
+      )}
+      {!loading && hiddenEfforts.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Button size="small" variant="outlined" onClick={() => setShowHidden((v) => !v)}>
+            {showHidden ? `Hide ${hiddenEfforts.length} hidden efforts` : `Show ${hiddenEfforts.length} hidden efforts`}
+          </Button>
+        </Box>
       )}
     </>
   );

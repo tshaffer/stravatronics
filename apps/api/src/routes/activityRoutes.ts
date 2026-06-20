@@ -68,6 +68,7 @@ function mapSegmentEffort(e: StravaSegmentEffort, activityStravaId: number): Seg
     komRank: e.kom_rank ?? null,
     startIndex: e.start_index ?? null,
     endIndex: e.end_index ?? null,
+    hidden: e.hidden ?? false,
     segment: {
       stravaId: e.segment.id,
       name: e.segment.name,

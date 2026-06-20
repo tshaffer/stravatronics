@@ -91,6 +91,7 @@ export interface SegmentEffort {
   normalizedPower?: number;
   intensityFactor?: number;
   trainingStressScore?: number;
+  hidden?: boolean;
   segment: SegmentSummary;
 }
 
