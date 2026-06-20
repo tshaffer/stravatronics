@@ -103,6 +103,7 @@ export async function fetchSegmentEfforts(stravaId: number): Promise<SegmentEffo
 export interface StreamChartPoint {
   distance: number;
   time?: number;
+  movingTime?: number;
   altitude?: number;
   watts?: number;
   heartrate?: number;

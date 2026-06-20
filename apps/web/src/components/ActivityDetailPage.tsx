@@ -114,7 +114,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
     }
     return {
       dist: +(p.distance * distFactor).toFixed(2),
-      ...(p.time != null ? { time: p.time } : {}),
+      ...(p.time != null ? { time: p.time, movingTime: p.movingTime } : {}),
       ...(hasAltitude && p.altitude != null ? { altitude: +(p.altitude * altFactor).toFixed(1) } : {}),
       ...(hasAltitude ? { elevGain: Math.round(accumElev * altFactor) } : {}),
       ...(hasWatts && p.watts != null ? { watts: p.watts } : {}),
@@ -136,7 +136,8 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
     const point = Object.fromEntries(payload.map((p) => [p.name, p.value]));
     return (
       <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', p: 1.5, borderRadius: 1, fontSize: 13 }}>
-        {point['time'] != null && <Box><b>Time:</b> {fmtTime(point['time'] as number)}</Box>}
+        {point['movingTime'] != null && <Box><b>Moving Time:</b> {fmtTime(point['movingTime'] as number)}</Box>}
+        {point['time'] != null && <Box><b>Elapsed Time:</b> {fmtTime(point['time'] as number)}</Box>}
         {point['dist'] != null && <Box><b>Dist:</b> {(point['dist'] as number).toFixed(2)} {distUnit}</Box>}
         {point['altitude'] != null && <Box><b>Elevation:</b> {point['altitude']} {altUnit}</Box>}
         {point['elevGain'] != null && <Box><b>Elev Gain:</b> {point['elevGain']} {altUnit}</Box>}
@@ -187,6 +188,7 @@ function ActivityChart({ streams, imperial }: ActivityChartProps): ReactElement 
           <YAxis yAxisId="hidden" hide={true} />
           <Line yAxisId="hidden" dataKey="dist" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
           <Line yAxisId="hidden" dataKey="time" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
+          <Line yAxisId="hidden" dataKey="movingTime" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
           <Line yAxisId="hidden" dataKey="grade" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
           {hasAltitude && showElevation && (
             <Area

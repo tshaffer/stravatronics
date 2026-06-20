@@ -165,7 +165,7 @@ activityRouter.get('/:id/streams', async (req: Request, res: Response) => {
 
   const chart = Array.from({ length: n }, (_, i) => ({
     distance: stored.distance[i] ?? 0,
-    ...(hasTime ? { time: stored.time[i] } : {}),
+    ...(hasTime ? { time: stored.time[i], movingTime: i } : {}),
     ...(hasAlt ? { altitude: stored.altitude[i] } : {}),
     ...(hasWatts ? { watts: stored.watts[i] } : {}),
     ...(hasHR ? { heartrate: stored.heartrate[i] } : {}),
