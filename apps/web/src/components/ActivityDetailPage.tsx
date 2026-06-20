@@ -275,6 +275,7 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
   const navigate = useNavigate();
   const hasWatts = efforts.some((e) => e.averageWatts != null);
   const hasHR = efforts.some((e) => e.averageHeartrate != null);
+  const hasMaxHR = efforts.some((e) => e.maxHeartrate != null);
   const hasNP = efforts.some((e) => e.normalizedPower != null);
 
   return (
@@ -307,6 +308,7 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
                 {hasNP && <TableCell align="right">IF</TableCell>}
                 {hasNP && <TableCell align="right">TSS</TableCell>}
                 {hasHR && <TableCell align="right">Avg HR</TableCell>}
+                {hasMaxHR && <TableCell align="right">Max HR</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -371,6 +373,11 @@ function SegmentEffortsTable({ efforts, imperial, loading }: SegmentEffortsTable
                     {hasHR && (
                       <TableCell align="right">
                         {e.averageHeartrate != null ? `${Math.round(e.averageHeartrate)}` : '—'}
+                      </TableCell>
+                    )}
+                    {hasMaxHR && (
+                      <TableCell align="right">
+                        {e.maxHeartrate != null ? `${Math.round(e.maxHeartrate)}` : '—'}
                       </TableCell>
                     )}
                   </TableRow>
@@ -466,7 +473,7 @@ export function ActivityDetailPage({ imperial }: ActivityDetailPageProps): React
   });
 
   return (
-    <Box sx={{ p: 3, maxWidth: 960, mx: 'auto' }}>
+    <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <IconButton onClick={() => navigate(-1)} size="small">
           <ArrowBackIcon />
